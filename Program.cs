@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Data.Common;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace EFGames
 {
@@ -11,35 +8,53 @@ namespace EFGames
     {
         static async Task Main(string[] args)
         {
-            await using var ctx = new BlogContext();
-            await ctx.Database.EnsureDeletedAsync();
-            await ctx.Database.EnsureCreatedAsync();
+            // Checks for ColumnName when missing column name:
+
+            // using var conn = new SqlConnection(@"Server=localhost;Database=test;User=SA;Password=Abcd5678;Connect Timeout=60;ConnectRetryCount=0");
+            // using var conn = new NpgsqlConnection("Host=localhost;Username=test;Password=test");
+            // using var conn = new SqliteConnection("Filename=:memory:");
+            // using var conn = new System.Data.SQLite.SQLiteConnection("DataSource=:memory:");
+            // using var conn = new MySqlConnector.MySqlConnection(@"Server=localhost;User ID=test;Password=test;Database=test");
+            // using var conn = new MySql.Data.MySqlClient.MySqlConnection(@"Server=localhost;User ID=test;Password=test;Database=test");
+            // await CheckMissingColumName(conn);
+
+            // DbProviderFactory checks:
+
+            // Report(Microsoft.Data.SqlClient.SqlClientFactory.Instance);
+            // Report(System.Data.SqlClient.SqlClientFactory.Instance);
+            // Report(Npgsql.NpgsqlFactory.Instance);
+            // Report(MySql.Data.MySqlClient.MySqlClientFactory.Instance);
+            // Report(MySqlConnector.MySqlClientFactory.Instance);
+            // Report(Microsoft.Data.Sqlite.SqliteFactory.Instance);
+            // Report(Microsoft.Data.Sqlite.SqliteFactory.Instance);
+            // Report(System.Data.SQLite.SQLiteFactory.Instance);
+            // Report(Oracle.ManagedDataAccess.Client.OracleClientFactory.Instance);
         }
-    }
 
-    public class BlogContext : DbContext
-    {
-        public DbSet<Blog> Blogs { get; set; }
-
-        static ILoggerFactory ContextLoggerFactory
-            => LoggerFactory.Create(b => b.AddConsole().AddFilter("", LogLevel.Information));
-
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-            => optionsBuilder
-                //.UseSqlServer(@"Server=localhost;Database=test;User=SA;Password=Abcd5678;Connect Timeout=60;ConnectRetryCount=0")
-                //.UseSqlite("Filename=:memory:")
-                .UseNpgsql(@"Host=localhost;Username=test;Password=test")
-                .EnableSensitiveDataLogging()
-                .UseLoggerFactory(ContextLoggerFactory);
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        static void Report(DbProviderFactory factory)
         {
+            Console.Write($"Factory: {factory.GetType().FullName}");
+            Console.WriteLine($@"
+  {nameof(factory.CreateCommand)} returns null: {factory.CreateCommand() is null}
+  {nameof(factory.CreateCommandBuilder)} returns null: {factory.CreateCommandBuilder() is null}
+  {nameof(factory.CreateConnection)} returns null: {factory.CreateConnection() is null}
+  {nameof(factory.CreateConnectionStringBuilder)} returns null: {factory.CreateConnectionStringBuilder() is null}
+  {nameof(factory.CreateDataAdapter)} return nulls: {factory.CreateDataAdapter() is null}
+  {nameof(factory.CreateParameter)} return nulls: {factory.CreateParameter() is null}
+  {nameof(factory.CreateDataSourceEnumerator)} returns null: {factory.CreateDataSourceEnumerator() is null}");
+            Console.WriteLine();
         }
-    }
 
-    public class Blog
-    {
-        public int Id { get; set; }
-        public string Name { get; set; }
+        static async Task CheckMissingColumName(DbConnection conn)
+        {
+            await conn.OpenAsync();
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT 1";
+            using var reader = await cmd.ExecuteReaderAsync();
+            var schema = reader.GetColumnSchema();
+
+            Console.WriteLine($"Connection {conn.GetType().FullName} returns null for missing column name: {schema[0].ColumnName is null}");
+        }
     }
 }
